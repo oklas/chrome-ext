@@ -47,18 +47,20 @@ class ChromeExtension {
     const extId = this.extId()
 
     let script = `
-      var callback = function(error, result, responceCallback) {
+      (function() {
+        var callback = function(error, result, responceCallback) {
 
-        chrome.runtime.sendMessage(
-          "${extId}",
-          { ${callId}: [error, result] },
-          responceCallback || function(response) {
-          }
-        );     
+          chrome.runtime.sendMessage(
+            "${extId}",
+            { ${callId}: [error, result] },
+            responceCallback || function(response) {
+            }
+          )
 
-      }
+        }
 
-      ${scriptString}
+        ${scriptString}
+      })()
 
     `
 
@@ -102,7 +104,11 @@ class ChromeExtension {
   }
 
   closeTab(tabId) {
-    chrome.tabs.remove(tabId, function() { });
+    try{
+      chrome.tabs.remove(tabId, function() { });
+    } catch(e) {
+      console.warn('close chrome tab ' + ee.message)
+    }
   }
 
 }
