@@ -1,0 +1,34 @@
+{
+  "name": "chrome-ext",
+  "version": "1.0.0",
+  "description": "Chrome Extension some usable things",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oklas/chrome-ext.git"
+  },
+  "keywords": [
+    "chrome",
+    "extension",
+    "tab",
+    "callback"
+  ],
+  "author": "Serguei Okladnikov <oklaspec@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/oklas/chrome-ext/issues"
+  },
+  "homepage": "https://github.com/oklas/chrome-ext#readme",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-loader": "^7.1.1",
+    "babel-plugin-transform-decorators-legacy": "^1.3.4",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1"
+  },
+  "scripts": {
+    "build": "babel -d dist/ src/*",
+    "test": "jest"
+  }
+}
