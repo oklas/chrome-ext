@@ -2,6 +2,9 @@
 class ChromeExtension {
   constructor() {
     this.listeners = {}
+    this.nextCallId = 0
+    this.releasedCalls = []
+    console.log( chrome.extension.getURL("popup.html") )
   }
 
   extId() {
@@ -13,7 +16,7 @@ class ChromeExtension {
   }
 
   unmount = () => {
-    chrome.extension.onMessage.removeListener( this._messageListener );
+    chrome.extension.onMessage.removeListener( this._messageListener )
   }
 
   _messageListener = (request, sender, sendResponse) => {
@@ -30,6 +33,15 @@ class ChromeExtension {
     
   }
 
+  allocCallId(namespace) {
+    return this.releasedCalls.length ?
+      this.releasedCalls.pop() : ++this.nextCallId
+  }
+
+  releaseCallId(callId) {
+    this.releasedCalls.push( parseInt(callId) )
+  }
+
   subscribeTabMessage = ( callId, listener ) => {
     if( !this.listeners[callId] )
       this.listeners[callId] = []
@@ -43,8 +55,9 @@ class ChromeExtension {
     }
   }
 
-  evalStringInTab = ( tabId, callId, scriptString, callback ) => {
+  evalStringInTab = ( tabId, scriptString, callback ) => {
     const extId = this.extId()
+    const callId = this.allocCallId()
 
     let script = `
       (function() {
@@ -81,6 +94,12 @@ class ChromeExtension {
 
   listOfTabs(callback) {
     chrome.tabs.query({}, (tabs) => {
+      callback(tabs);
+    });
+  }
+
+  listOfCurrentWindowTabs(callback) {
+    chrome.tabs.query({currentWindow: true}, (tabs) => {
       callback(tabs);
     });
   }
