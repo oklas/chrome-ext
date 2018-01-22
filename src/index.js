@@ -85,7 +85,11 @@ class ChromeExtension {
           callback(error, result, responceCallback)
         }
       )
-      chrome.tabs.executeScript( tabId, { code: script } )
+      chrome.tabs.executeScript( tabId, { code: script }, function(result) {
+        unsubscribe()
+        if(!result)
+          callback('Error chrome.tabs.executeScript, probably no such tab' )
+      })
     } catch(e) {
       unsubscribe()
       callback('Error ' + e.name + ":" + e.message + "\n" + e.stack, undefined, ()=>{} )
