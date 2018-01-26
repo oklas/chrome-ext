@@ -1,5 +1,5 @@
 
-class ChromeExtension {
+export class ChromeExtension {
   constructor() {
     this.listeners = {}
     this.nextCallId = 0
@@ -138,6 +138,4 @@ class ChromeExtension {
     chrome.tabs.create({ url, active }, callback);
   }
 }
-
-export default ChromeExtension
 

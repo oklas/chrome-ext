@@ -11,9 +11,9 @@ It is not replacement of chrome object but only helpers joined into object.
 # Synopsis
 
 ``` javascript
-  import { ChromeWrapper } from './chrome-ext'
+  import { ChromeExtension } from './chrome-ext'
 
-  this.chrome = new ChromeWrapper()
+  this.chrome = new ChromeExtension()
 
   // execute on chrome extension is loaded
   this.chrome.mount()
