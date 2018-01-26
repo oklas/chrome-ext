@@ -126,17 +126,18 @@ class ChromeExtension {
     });
   }
 
-  closeTab(tabId) {
+  closeTab(tabId, callback = tab => {}) {
     try{
-      chrome.tabs.remove(tabId, function() { });
+      chrome.tabs.remove(tabId, callback);
     } catch(e) {
       console.warn('close chrome tab ' + ee.message)
     }
   }
 
+  openTab(url, active=false, callback = tab => {}) {
+    chrome.tabs.create({ url, active }, callback);
+  }
 }
-
-
 
 export default ChromeExtension
 
