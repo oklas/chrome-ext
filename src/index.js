@@ -87,8 +87,12 @@ export class ChromeExtension {
       )
       chrome.tabs.executeScript( tabId, { code: script }, function(result) {
         unsubscribe()
-        if(!result)
+        if( chrome.runtime.lastError ) {
+          return callback(chrome.runtime.lastError)
+        }
+        if(!result) {
           callback('Error chrome.tabs.executeScript, probably no such tab' )
+        }
       })
     } catch(e) {
       unsubscribe()
@@ -128,7 +132,12 @@ export class ChromeExtension {
 
   closeTab(tabId, callback = tab => {}) {
     try{
-      chrome.tabs.remove(tabId, callback);
+      chrome.tabs.remove(tabId, () => {
+        if( chrome.runtime.lastError ) {
+          return callback(chrome.runtime.lastError)
+        }
+        callback()
+      });
     } catch(e) {
       console.warn('close chrome tab ' + ee.message)
     }
