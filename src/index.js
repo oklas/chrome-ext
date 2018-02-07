@@ -88,7 +88,7 @@ export class ChromeExtension {
       chrome.tabs.executeScript( tabId, { code: script }, function(result) {
         unsubscribe()
         if( chrome.runtime.lastError ) {
-          return callback(chrome.runtime.lastError ||
+          return callback(chrome.runtime.lastError.message ||
             'evalStringInTab chrome undefined error')
         }
         if(!result) {
