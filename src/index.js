@@ -88,7 +88,8 @@ export class ChromeExtension {
       chrome.tabs.executeScript( tabId, { code: script }, function(result) {
         unsubscribe()
         if( chrome.runtime.lastError ) {
-          return callback(chrome.runtime.lastError)
+          return callback(chrome.runtime.lastError ||
+            'evalStringInTab chrome undefined error')
         }
         if(!result) {
           callback('Error chrome.tabs.executeScript, probably no such tab' )
@@ -134,7 +135,8 @@ export class ChromeExtension {
     try{
       chrome.tabs.remove(tabId, () => {
         if( chrome.runtime.lastError ) {
-          return callback(chrome.runtime.lastError)
+          return callback(chrome.runtime.lastError.message ||
+            'closeTab chrome undefined error')
         }
         callback()
       });
