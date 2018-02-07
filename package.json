@@ -29,6 +29,7 @@
   },
   "scripts": {
     "build": "babel -d dist/ src/*",
+    "prepublish": "npm run build",
     "test": "jest"
   }
 }
