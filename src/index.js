@@ -4,6 +4,9 @@ export class ChromeExtension {
     this.listeners = {}
     this.nextCallId = 0
     this.releasedCalls = []
+    this.tabCalls = {}
+    this.callToTab = {}
+    this.tabPingInterval = 15 * 1000
     console.log( chrome.extension.getURL("popup.html") )
   }
 
@@ -13,9 +16,11 @@ export class ChromeExtension {
 
   mount = () => {
     chrome.extension.onMessage.addListener( this._messageListener )
+    this.tabPingIntervalId = setInterval( this._tabPing, this.tabPingInterval )
   }
 
   unmount = () => {
+    clearInterval( this.tabPingIntervalId )
     chrome.extension.onMessage.removeListener( this._messageListener )
   }
 
@@ -30,16 +35,59 @@ export class ChromeExtension {
         })
       }
     })
-    
   }
 
-  allocCallId(namespace) {
-    return this.releasedCalls.length ?
+  _tabPing = () => {
+    const usedTabs = Object.keys(this.tabCalls)
+      .filter(tabId => Object.keys(this.tabCalls).length)
+      .reduce((a,tabId) => { a[tabId] = 0; return a }, {})
+
+    if(!Object.keys(usedTabs).length) return
+
+    this.listOfTabs(tabs => {
+      tabs.forEach(tab =>
+        usedTabs.hasOwnProperty(tab.id) ?
+          usedTabs[tab.id]++ : null
+      )
+
+      Object.keys(usedTabs).forEach(tabId => {
+        if(!usedTabs[tabId]) {
+          Object.keys(this.tabCalls[tabId])
+            .forEach(callId => this.tabCalls[tabId][callId]('ChromeExt tab was closed'))
+        }
+      })
+    })
+  }
+
+  allocCallId(tabId, errorHandler) {
+    const callId = this.releasedCalls.length ?
       this.releasedCalls.pop() : ++this.nextCallId
+
+    if(!this.tabCalls[tabId]) this.tabCalls[tabId] = {}
+    this.tabCalls[tabId][callId] = errorHandler || (
+      () => console.warn('allocCallId error handler was not specified')
+    )
+
+    this.callToTab[callId] = tabId
+
+    return callId
   }
 
   releaseCallId(callId) {
+    const tabId = this.callToTab[callId]
+
+    delete this.tabCalls[tabId][callId]
+    if(!Object.keys(this.tabCalls[tabId]).length)
+      delete this.tabCalls[tabId]
+
+    delete this.callToTab[callId]
+
     this.releasedCalls.push( parseInt(callId) )
+  }
+
+  tabCallCount(tabId) {
+    return this.tabCalls[tabId] ?
+      Object.keys(this.tabCalls[tabId]).length : 0
   }
 
   subscribeTabMessage = ( callId, listener ) => {
@@ -57,7 +105,13 @@ export class ChromeExtension {
 
   evalStringInTab = ( tabId, scriptString, callback ) => {
     const extId = this.extId()
-    const callId = this.allocCallId()
+    const callIdObj = {}
+    const done = (...args) => {
+      if(callIdObj.unsubscribe) callIdObj.unsubscribe()
+      this.releaseCallId(callIdObj.callId)
+      callback(...args)
+    }
+    callIdObj.callId = this.allocCallId(tabId, error => done(error))
 
     let script = `
       (function() {
@@ -65,7 +119,7 @@ export class ChromeExtension {
 
           chrome.runtime.sendMessage(
             "${extId}",
-            { ${callId}: [error, result] },
+            { ${callIdObj.callId}: [error, result] },
             responceCallback || function(response) {
             }
           )
@@ -77,27 +131,24 @@ export class ChromeExtension {
 
     `
 
-    let unsubscribe
     try{
-      unsubscribe = this.subscribeTabMessage(
-        callId, (error, result, responceCallback) => {
-          unsubscribe()
-          callback(error, result, responceCallback)
+      callIdObj.unsubscribe = this.subscribeTabMessage(
+        callIdObj.callId,
+        (error, result, responceCallback) => {
+          done(error, result, responceCallback)
         }
       )
       chrome.tabs.executeScript( tabId, { code: script }, function(result) {
-        unsubscribe()
         if( chrome.runtime.lastError ) {
-          return callback(chrome.runtime.lastError.message ||
+          return done(chrome.runtime.lastError.message ||
             'evalStringInTab chrome undefined error')
         }
         if(!result) {
-          callback('Error chrome.tabs.executeScript, probably no such tab' )
+          done('Error chrome.tabs.executeScript, probably no such tab' )
         }
       })
     } catch(e) {
-      unsubscribe()
-      callback('Error ' + e.name + ":" + e.message + "\n" + e.stack, undefined, ()=>{} )
+      done('Error ' + e.name + ":" + e.message + "\n" + e.stack, undefined, ()=>{} )
     }
   }
 
@@ -141,7 +192,7 @@ export class ChromeExtension {
         callback()
       });
     } catch(e) {
-      console.warn('close chrome tab ' + ee.message)
+      console.warn('close chrome tab ' + e.message)
     }
   }
 
