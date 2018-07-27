@@ -1,6 +1,6 @@
 {
   "name": "chrome-ext",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Chrome Extension some usable things",
   "main": "src/index.js",
   "repository": {
