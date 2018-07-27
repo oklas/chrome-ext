@@ -38,13 +38,17 @@ export class ChromeExtension {
   }
 
   _tabPing = () => {
-    const usedTabs = Object.keys(this.tabCalls)
-      .filter(tabId => Object.keys(this.tabCalls).length)
-      .reduce((a,tabId) => { a[tabId] = 0; return a }, {})
+    const callsCount = Object
+      .values(this.tabCalls)
+      .reduce((a,c) => a+Object.keys(c).length, 0)
 
-    if(!Object.keys(usedTabs).length) return
+    if(!callsCount) return
 
     this.listOfTabs(tabs => {
+      const usedTabs = Object.keys(this.tabCalls)
+        .filter(tabId => Object.keys(this.tabCalls[tabId]).length)
+        .reduce((a,tabId) => { a[tabId] = 0; return a }, {})
+
       tabs.forEach(tab =>
         usedTabs.hasOwnProperty(tab.id) ?
           usedTabs[tab.id]++ : null
