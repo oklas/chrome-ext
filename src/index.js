@@ -1,4 +1,3 @@
-
 export class ChromeExtension {
   constructor() {
     this.listeners = {}
@@ -183,59 +182,75 @@ export class ChromeExtension {
 
   listOfTabs(callback) {
     const action = (resolve, reject) => {
-      chrome.tabs.query({}, (tabs) => {
-        resolve(tabs);
-      });
+      try {
+        chrome.tabs.query({}, (tabs) => {
+          resolve(tabs);
+        });
+      } catch (e) { reject(e) }
     }
     return this.callAction(action, callback)
   }
 
   listOfCurrentWindowTabs(callback) {
     const action = (resolve, reject) => {
-      chrome.tabs.query({currentWindow: true}, (tabs) => {
-        resolve(tabs)
-      })
+      try {
+        chrome.tabs.query({currentWindow: true}, (tabs) => {
+          resolve(tabs)
+        })
+      } catch (e) { reject(e) }
     }
     return this.callAction(action, callback)
   }
 
   currentTab(callback) {
     const action = (resolve, reject) => {
-      // https://developer.chrome.com/extensions/tabs#method-query
-      let queryInfo = {
-        active: true,
-        currentWindow: true
-      };
+      try {
+        // https://developer.chrome.com/extensions/tabs#method-query
+        let queryInfo = {
+          active: true,
+          currentWindow: true
+        };
 
-      chrome.tabs.query(queryInfo, (tabs) => {
-        let tab = tabs[0];
+        chrome.tabs.query(queryInfo, (tabs) => {
+          let tab = tabs[0];
 
-        // See https://developer.chrome.com/extensions/tabs#type-Tab
-        var url = tab.url;
-        console.assert(typeof url == 'string', 'tab.url should be a string');
+          // See https://developer.chrome.com/extensions/tabs#type-Tab
+          var url = tab.url;
+          console.assert(typeof url == 'string', 'tab.url should be a string');
 
-        resolve(tab);
-      });
+          resolve(tab);
+        });
+      } catch (e) { reject(e) }
     }
     return this.callAction(action, callback)
   }
 
   closeTab(tabId, callback) {
     const action = (resolve, reject) => {
-      chrome.tabs.remove(tabId, () => {
-        if( chrome.runtime.lastError ) {
-          return reject(chrome.runtime.lastError.message ||
-            'closeTab chrome undefined error')
-        }
-        resolve()
-      });
+      try{
+        chrome.tabs.remove(tabId, () => {
+          if( chrome.runtime.lastError ) {
+            return reject(chrome.runtime.lastError.message ||
+              'closeTab chrome undefined error')
+          }
+          resolve()
+        });
+      } catch(e) {
+        console.warn('close chrome tab ' + e.message)
+        reject(e)
+      }
     }
     return this.callAction(action, callback)
   }
 
   openTab(url, active, callback) {
     const action = (resolve, reject) => {
-      chrome.tabs.create({ url, active }, resolve);
+      try{
+        chrome.tabs.create({ url, active }, resolve);
+      } catch(e) {
+        console.warn('open chrome tab ' + e.message)
+        reject(e)
+      }
     }
     return this.callAction(action, callback)
   }
