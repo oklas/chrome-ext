@@ -10,6 +10,20 @@ export class ChromeExtension {
     console.log( chrome.extension.getURL("popup.html") )
   }
 
+  callAction(action, callback) {
+    if (typeof callback !== 'function' && typeof callback !== 'undefined')
+      throw Error('callback must be a function')
+    if (typeof action !== 'function')
+      throw Error('action must be a function')
+    if(callback)
+      return action(
+        err => callback(err),
+        res => callback(undefined, res)
+      )
+    else
+      return new Promise(action)
+  }
+
   extId() {
     return chrome.runtime.id
   }
@@ -110,98 +124,119 @@ export class ChromeExtension {
   evalStringInTab = ( tabId, scriptString, callback ) => {
     const extId = this.extId()
     const callIdObj = {}
-    const done = (...args) => {
-      if(callIdObj.unsubscribe) callIdObj.unsubscribe()
-      this.releaseCallId(callIdObj.callId)
-      callback(...args)
+    const action = (resolve, reject) => {
+      const done = (err, result, responce) => {
+        if(callIdObj.unsubscribe) callIdObj.unsubscribe()
+        this.releaseCallId(callIdObj.callId)
+        if(err) reject(err)
+        else resolve({result, responce})
+      }
+      callIdObj.callId = this.allocCallId(tabId, error => done(error))
+
+      let script = `
+        (function() {
+          var callback = function(error, result, responceCallback) {
+
+            chrome.runtime.sendMessage(
+              "${extId}",
+              { ${callIdObj.callId}: [error, result] },
+              responceCallback || function(response) {
+              }
+            )
+
+          }
+
+          ${scriptString}
+        })()
+
+      `
+
+      try{
+        callIdObj.unsubscribe = this.subscribeTabMessage(
+          callIdObj.callId,
+          (error, result, responceCallback) => {
+            done(error, result, responceCallback)
+          }
+        )
+        chrome.tabs.executeScript( tabId, { code: script }, function(result) {
+          if( chrome.runtime.lastError ) {
+            return done(chrome.runtime.lastError.message ||
+              'evalStringInTab chrome undefined error')
+          }
+          if(!result) {
+            done('Error chrome.tabs.executeScript, probably no such tab' )
+          }
+        })
+      } catch(e) {
+        done('Error ' + e.name + ":" + e.message + "\n" + e.stack, undefined, ()=>{} )
+      }
     }
-    callIdObj.callId = this.allocCallId(tabId, error => done(error))
 
-    let script = `
-      (function() {
-        var callback = function(error, result, responceCallback) {
-
-          chrome.runtime.sendMessage(
-            "${extId}",
-            { ${callIdObj.callId}: [error, result] },
-            responceCallback || function(response) {
-            }
-          )
-
-        }
-
-        ${scriptString}
-      })()
-
-    `
-
-    try{
-      callIdObj.unsubscribe = this.subscribeTabMessage(
-        callIdObj.callId,
-        (error, result, responceCallback) => {
-          done(error, result, responceCallback)
-        }
+    if(callback)
+      return action(
+        err => callback(err),
+        ({result, responce}) => callback(undefined, result, responce)
       )
-      chrome.tabs.executeScript( tabId, { code: script }, function(result) {
-        if( chrome.runtime.lastError ) {
-          return done(chrome.runtime.lastError.message ||
-            'evalStringInTab chrome undefined error')
-        }
-        if(!result) {
-          done('Error chrome.tabs.executeScript, probably no such tab' )
-        }
-      })
-    } catch(e) {
-      done('Error ' + e.name + ":" + e.message + "\n" + e.stack, undefined, ()=>{} )
-    }
+    else
+      return new Promise(action)
   }
 
   listOfTabs(callback) {
-    chrome.tabs.query({}, (tabs) => {
-      callback(tabs);
-    });
+    const action = (resolve, reject) => {
+      chrome.tabs.query({}, (tabs) => {
+        resolve(tabs);
+      });
+    }
+    return this.callAction(action, callback)
   }
 
   listOfCurrentWindowTabs(callback) {
-    chrome.tabs.query({currentWindow: true}, (tabs) => {
-      callback(tabs);
-    });
+    const action = (resolve, reject) => {
+      chrome.tabs.query({currentWindow: true}, (tabs) => {
+        resolve(tabs)
+      })
+    }
+    return this.callAction(action, callback)
   }
 
   currentTab(callback) {
-    // https://developer.chrome.com/extensions/tabs#method-query
-    let queryInfo = {
-      active: true,
-      currentWindow: true
-    };
+    const action = (resolve, reject) => {
+      // https://developer.chrome.com/extensions/tabs#method-query
+      let queryInfo = {
+        active: true,
+        currentWindow: true
+      };
 
-    chrome.tabs.query(queryInfo, (tabs) => {
-      let tab = tabs[0];
+      chrome.tabs.query(queryInfo, (tabs) => {
+        let tab = tabs[0];
 
-      // See https://developer.chrome.com/extensions/tabs#type-Tab
-      var url = tab.url;
-      console.assert(typeof url == 'string', 'tab.url should be a string');
+        // See https://developer.chrome.com/extensions/tabs#type-Tab
+        var url = tab.url;
+        console.assert(typeof url == 'string', 'tab.url should be a string');
 
-      callback(tab);
-    });
+        resolve(tab);
+      });
+    }
+    return this.callAction(action, callback)
   }
 
-  closeTab(tabId, callback = tab => {}) {
-    try{
+  closeTab(tabId, callback) {
+    const action = (resolve, reject) => {
       chrome.tabs.remove(tabId, () => {
         if( chrome.runtime.lastError ) {
-          return callback(chrome.runtime.lastError.message ||
+          return reject(chrome.runtime.lastError.message ||
             'closeTab chrome undefined error')
         }
-        callback()
+        resolve()
       });
-    } catch(e) {
-      console.warn('close chrome tab ' + e.message)
     }
+    return this.callAction(action, callback)
   }
 
-  openTab(url, active=false, callback = tab => {}) {
-    chrome.tabs.create({ url, active }, callback);
+  openTab(url, active, callback) {
+    const action = (resolve, reject) => {
+      chrome.tabs.create({ url, active }, resolve);
+    }
+    return this.callAction(action, callback)
   }
 }
-

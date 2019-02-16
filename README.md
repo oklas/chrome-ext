@@ -35,17 +35,30 @@ It is not replacement of chrome object but only helpers joined into object.
     timerId = setInterval( doWork, 500 )
   `
 
+    // callback call
     this.chrome.evalStringInTab( tabId, script, (error, result, responce) => {
       if(error) console.error(error)
       if(result) console.log(result)
       responce('ok')
     })
 
+    // async call
+    const {result, responce} = await this.chrome.evalStringInTab( tabId, script )
+
+
     this.chrome.listOfTabs(tabs => {})
+    const tabs = await this.chrome.listOfTabs()
+
     this.chrome.listOfCurrentWindowTabs(tabs => {})
+    const tabs = await this.chrome.listOfCurrentWindowTabs()
+
     this.chrome.currentTab(tab => {})
+    const tab = await this.chrome.currentTab()
 
     this.chrome.openTab(url, active?true:false, tab => {})
-    this.chrome.closeTab(tab.id)
+    const tab = await this.chrome.openTab(url, active?true:false)
+
+    this.chrome.closeTab(tab.id, ()=>{})
+    await this.chrome.closeTab(tab.id)
 
 ```
