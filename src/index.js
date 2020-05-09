@@ -1,3 +1,4 @@
+
 export class ChromeExtension {
   constructor() {
     this.listeners = {}
@@ -6,6 +7,8 @@ export class ChromeExtension {
     this.tabCalls = {}
     this.callToTab = {}
     this.tabPingInterval = 15 * 1000
+    this.instanceId = 'awaiting'
+    chrome.tabs.getCurrent(tab => {if(tab) this.instanceId = tab.id})
     console.log( chrome.extension.getURL("popup.html") )
   }
 
@@ -78,7 +81,7 @@ export class ChromeExtension {
 
   allocCallId(tabId, errorHandler) {
     const callId = this.releasedCalls.length ?
-      this.releasedCalls.pop() : ++this.nextCallId
+      this.releasedCalls.pop() : `_${this.instanceId}_${++this.nextCallId}`
 
     if(!this.tabCalls[tabId]) this.tabCalls[tabId] = {}
     this.tabCalls[tabId][callId] = errorHandler || (
@@ -92,14 +95,13 @@ export class ChromeExtension {
 
   releaseCallId(callId) {
     const tabId = this.callToTab[callId]
-
     delete this.tabCalls[tabId][callId]
     if(!Object.keys(this.tabCalls[tabId]).length)
       delete this.tabCalls[tabId]
 
     delete this.callToTab[callId]
 
-    this.releasedCalls.push( parseInt(callId) )
+    this.releasedCalls.push( callId )
   }
 
   tabCallCount(tabId) {
@@ -129,6 +131,7 @@ export class ChromeExtension {
         this.releaseCallId(callIdObj.callId)
         if(err) reject(err)
         else resolve({result, responce})
+
       }
       callIdObj.callId = this.allocCallId(tabId, error => done(error))
 
